@@ -33,6 +33,7 @@ from services.llm_client import (
 from services.mcp_runner import load_all_tools, load_mcp_servers
 from services.native_runner import AgentState, run_native
 from services.network import NetworkError
+from services.response_reader import last_assistant_response, read_response
 from services.token_counter import (
     count_chat_tokens,
     format_token_count,
@@ -196,6 +197,7 @@ def render_status(status: str, message: str):
         "limit_reached": "⚠️ ",
         "stopped": "🛑",
         "retrying": "↻",
+        "incomplete_result": "⚠️",
     }
     if status == "tool_result":
         preview = message[:2000]
@@ -226,6 +228,7 @@ def cmd_help():
     table.add_row("/mcp connect",    "Połącz z serwerami MCP z pliku konfiguracyjnego")
     table.add_row("/mcp disconnect", "Rozłącz serwery MCP")
     table.add_row("/tokens",         "Szczegółowy licznik tokenów")
+    table.add_row("/read",           "Czytaj ostatnią odpowiedź od początku; Esc/q wraca do rozmowy")
     table.add_row("/clear",          "Wyczyść historię czatu")
     table.add_row("/cls",            "Wyczyść ekran terminala")
     table.add_row("/export",         "Zapisz czat do pliku Markdown")
@@ -493,6 +496,14 @@ def main():
 
         if user_input.lower() == "/tokens":
             cmd_tokens(messages)
+            continue
+
+        if user_input.lower() == "/read":
+            content = last_assistant_response(messages)
+            if content is None:
+                console.print("Brak odpowiedzi modelu do przeczytania.", markup=False)
+            else:
+                read_response(content)
             continue
 
         if user_input.lower() == "/clear":

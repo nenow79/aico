@@ -25,7 +25,7 @@ Kolejność poniżej jest propozycją, nie zatwierdzonym harmonogramem.[^state]
 
 | Priorytet | Praca | Kryterium odbioru |
 | --- | --- | --- |
-| 1 | Odbiór Windows/proxy/LiteLLM/MCP | Odczyt, zgoda, wznowienie, awaria i Ctrl+C sprawdzone na docelowym komputerze |
+| 1 | Odbiór Windows/proxy/LiteLLM/MCP | Odczyt, zgoda, wznowienie, awaria, Ctrl+C i /read (nawigacja, brak przeskoków, powrót) sprawdzone na docelowym komputerze |
 | 1 | Ustalenie wersji zależności | Odtwarzalna instalacja z potwierdzonym zestawem wersji |
 | 2 | Trwały zapis i odtworzenie sesji | Historia i task_id przeżywają restart; brak ponownego wykonania niepewnej operacji |
 | 2 | Ścisły limit czasu odpowiedzi LLM | Powrót sterowania także przy ciągłym napływie bajtów; zdefiniowane zasady anulowania |

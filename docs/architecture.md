@@ -9,6 +9,8 @@ sources:
     resource: 'Repozytorium aico: aico.py i services/*.py; 5f3d659 plus zmiany robocze z przeglądu 2026-10-15'
   - id: legacy
     resource: 'Repozytorium aico: .vibecoder_context.md oraz .vibecoder_checkpoints.md, niezmienione źródła historyczne'
+  - id: reader
+    resource: 'Repozytorium aico: services/response_reader.py oraz obsługa /read w aico.py; zmiana robocza po bc95b3f'
 ---
 
 # Architektura
@@ -30,6 +32,13 @@ Terminal → router dostawcy → LiteLLM/OpenRouter → natywne tool_calls → k
 | services/mcp_runner.py | Wczytanie konfiguracji/list narzędzi oraz starsza pętla tekstowa |
 | services/token_counter.py | Lokalny szacunek lub opcjonalny tiktoken |
 | services/chat_exporter.py | Eksport historii; CLI korzysta z Markdown |
+| services/response_reader.py | Osobny pełnoekranowy czytnik ostatniej odpowiedzi, tylko do odczytu |
+| services/mcp_completeness.py | Rozpoznawanie flag niepełności i instrukcja doczytywania; szczegóły w kontrakcie agenta |
+
+`/read` otwiera lokalny widok prompt_toolkit od początku tekstu. Widok korzysta
+z własnej nawigacji i nie dopisuje wiadomości do rozmowy. Treść Markdown jest
+wyświetlana jako tekst; wyniki narzędzi i puste wiadomości asystenta są pomijane
+przy wyborze ostatniej odpowiedzi.[^reader]
 
 Brak aktywnych serwerów oznacza zwykłą rozmowę bez narzędzi. Konfigurację MCP
 wczytuje się jawnie przez `/mcp connect`. Listowanie serwerów jest sekwencyjne.
@@ -58,3 +67,4 @@ ani dat decyzji architektonicznych.
 
 [^code]: Wskazane moduły lokalnego working tree.
 [^legacy]: Checkpointy opisują wcześniejszą fazę projektu.
+[^reader]: Implementacja czytnika i integracja z komendami CLI.

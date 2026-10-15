@@ -9,6 +9,8 @@ sources:
     resource: 'Repozytorium aico: services/network.py, services/native_runner.py, services/mcp_client.py i aico.py; working tree przeglądu 2026-10-15'
   - id: protocol
     resource: specs/agent-and-mcp.md
+  - id: reader
+    resource: 'Repozytorium aico: services/response_reader.py i /read w aico.py; zmiana robocza po bc95b3f'
 ---
 
 # Awaria połączenia
@@ -57,5 +59,17 @@ pamiętając o możliwym wykonaniu operacji MCP.
 Historia pozostaje w pamięci. Przed zamknięciem, jeśli terminal odpowiada, można
 użyć `/export`; po ponownym uruchomieniu nie ma automatycznego odtworzenia sesji.
 
+## Widok przeskakuje na dół podczas czytania
+
+Po zakończeniu odpowiedzi wpisz `/read`. Otworzy ostatnią niepustą odpowiedź
+asystenta od początku w osobnym widoku tekstu Markdown. Strzałki i Page Up/Down
+przewijają, Home/End przenoszą na początek/koniec, Esc lub q wraca do rozmowy.
+Ctrl+C również zamyka czytnik. Widok nie wznawia modelu ani oczekującego zadania.
+Jest dostępny, gdy CLI przyjmuje komendy, również w pauzie MCP.[^reader]
+
+Nie potwierdzono przyczyny pierwotnego zachowania konsoli Windows. Czytnik omija
+przewijanie historii terminala; jego działanie w docelowym CMD wymaga odbioru.
+
 [^code]: Zakres retry i ograniczenia aktualnej implementacji.
 [^protocol]: Semantyka pauzy, wznowienia i niejednoznacznego wyniku narzędzia.
+[^reader]: Lokalny czytnik odpowiedzi, niezależny od połączeń sieciowych.

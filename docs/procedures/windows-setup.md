@@ -36,6 +36,9 @@ wdrożenia.[^launcher]
 8. Sprawdź `/mcp connect` przy oczekującym zadaniu, odrzucenie zadania, przerwę
    sieciową oraz Ctrl+C. Do prób użyj danych testowych i procedury odzyskiwania.
 9. Sprawdź `/export` oraz polskie znaki. Eksport nie służy do wznowienia procesu.
+10. Po długiej odpowiedzi sprawdź `/read`: start od początku, Page Up/Down,
+    Home/End, brak samoczynnego przeskoku podczas czytania i powrót Esc/q.
+    Powtórz w klasycznej konsoli Windows oraz Windows Terminal, jeśli są dostępne.
 
 Testy offline aico, uruchamiane z katalogu projektu:
 
