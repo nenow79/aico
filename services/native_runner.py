@@ -9,6 +9,7 @@ from services.agent_protocol import (
     serialize_result, unwrap_mcp_result,
 )
 from services.mcp_client import call_mcp_tool
+from services.network import NetworkError
 
 
 SYSTEM_PROMPT = """Jesteś agentem terminalowym aico. Korzystaj z narzędzi MCP przez natywne tool_calls.
@@ -173,7 +174,8 @@ def run_native(messages: list[dict], model: str, servers_with_tools: list[dict],
                     add_result(call, {"success": False, "execution_unknown": True,
                                       "error": "Błąd MCP. Najpierw sprawdź stan; nie ponawiaj zapisu ani skryptu."})
                     skip_remaining("Nie wykonano: błąd wcześniejszego wywołania MCP.")
-                    status("error", "Błąd MCP; brak automatycznego ponowienia. /continue tylko po ocenie stanu.")
+                    status("error", f"Błąd MCP: {result.get('error') or 'brak odpowiedzi'}. "
+                           "Brak automatycznego ponowienia. /continue tylko po ocenie stanu.")
                     return messages
                 value = public_result(unwrap_mcp_result(result.get("result")))
                 add_result(call, value)
@@ -200,6 +202,6 @@ def run_native(messages: list[dict], model: str, servers_with_tools: list[dict],
         status("stopped", "Przerwano przez Ctrl+C. Trwające zadanie MCP mogło pozostać aktywne.")
     except Exception as error:
         skip_remaining("Nie wykonano: błąd agenta.")
-        detail = f": {error}" if isinstance(error, ProtocolError) else ""
+        detail = f": {error}" if isinstance(error, (ProtocolError, NetworkError)) else ""
         status("error", f"Pauza: {type(error).__name__}{detail}. Sprawdź API/MCP i obsługę tools przez model.")
     return messages

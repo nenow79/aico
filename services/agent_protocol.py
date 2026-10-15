@@ -31,10 +31,14 @@ def normalize_content(content: Any) -> str:
 
 def parse_completion(data: dict) -> Completion:
     """Never substitute reasoning for visible content, or dump raw API data."""
+    if not isinstance(data, dict):
+        raise ProtocolError("API nie zwróciło obiektu JSON.")
     choices = data.get("choices")
     if not isinstance(choices, list) or not choices:
         raise ProtocolError("API nie zwróciło choices.")
     choice = choices[0]
+    if not isinstance(choice, dict):
+        raise ProtocolError("API zwróciło niepoprawny element choices.")
     raw = choice.get("message")
     if not isinstance(raw, dict):
         raise ProtocolError("API nie zwróciło message.")

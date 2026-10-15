@@ -3,6 +3,7 @@ import json
 from typing import Any
 
 from fastmcp import Client
+from services.network import describe_error, seconds
 
 
 def run_async(coro):
@@ -83,9 +84,11 @@ def normalize_tool_result(result: Any) -> Any:
 
 
 async def async_list_mcp_tools(url: str) -> list[dict]:
-    async with Client(url) as client:
-        tools = await client.list_tools()
-        return [normalize_tool(tool) for tool in tools]
+    limit = seconds("MCP_DISCOVERY_TIMEOUT", 15)
+    async with asyncio.timeout(limit):
+        async with Client(url, timeout=limit, init_timeout=seconds("MCP_INIT_TIMEOUT", 10)) as client:
+            tools = await client.list_tools()
+            return [normalize_tool(tool) for tool in tools]
 
 
 async def async_test_mcp_connection(url: str) -> dict:
@@ -99,9 +102,11 @@ async def async_test_mcp_connection(url: str) -> dict:
 
 
 async def async_call_mcp_tool(url: str, tool_name: str, arguments: dict) -> Any:
-    async with Client(url) as client:
-        result = await client.call_tool(tool_name, arguments)
-        return normalize_tool_result(result)
+    limit = seconds("MCP_CALL_TIMEOUT", 60)
+    async with asyncio.timeout(limit):
+        async with Client(url, timeout=limit, init_timeout=seconds("MCP_INIT_TIMEOUT", 10)) as client:
+            result = await client.call_tool(tool_name, arguments)
+            return normalize_tool_result(result)
 
 
 def list_mcp_tools(url: str) -> dict:
@@ -120,7 +125,7 @@ def list_mcp_tools(url: str) -> dict:
             "success": False,
             "tools": [],
             "tools_count": 0,
-            "error": str(error),
+            "error": describe_error(error),
         }
 
 
@@ -133,7 +138,7 @@ def test_mcp_connection(url: str) -> dict:
             "success": False,
             "message": "",
             "tools_count": 0,
-            "error": str(error),
+            "error": describe_error(error),
         }
 
 
@@ -178,7 +183,7 @@ def call_mcp_tool(url: str, tool_name: str, arguments_json: str) -> dict:
         return {
             "success": False,
             "result": None,
-            "error": str(error),
+            "error": describe_error(error),
         }
 
 

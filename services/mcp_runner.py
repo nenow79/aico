@@ -230,7 +230,7 @@ def load_mcp_servers(path: str | Path = "config/mcp_servers.json") -> list[dict]
     return [
         {"name": str(s.get("name", "")), "url": str(s.get("url", ""))}
         for s in data
-        if s.get("name") and s.get("url")
+        if isinstance(s, dict) and s.get("enabled", True) and s.get("name") and s.get("url")
     ]
 
 

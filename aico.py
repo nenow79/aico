@@ -32,6 +32,7 @@ from services.llm_client import (
 )
 from services.mcp_runner import load_all_tools, load_mcp_servers
 from services.native_runner import AgentState, run_native
+from services.network import NetworkError
 from services.token_counter import (
     count_chat_tokens,
     format_token_count,
@@ -170,7 +171,7 @@ def build_prompt_text(model_label: str, messages: list[dict], mcp_count: int) ->
     tokens = count_chat_tokens(messages)
     tok_str = format_token_count(tokens)
     mcp_str = f"MCP:{mcp_count}" if mcp_count > 0 else "MCP:off"
-    return f"[{model_label} | {tok_str} | {mcp_str}] > "
+    return f"[{model_label} | ~{tok_str} | {mcp_str}] > "
 
 
 # ---------------------------------------------------------------------------
@@ -267,7 +268,7 @@ def cmd_tokens(messages: list[dict]):
 
     console.print()
     console.print(f"  Wiadomości: [bold]{len(visible)}[/bold]")
-    console.print(f"  Tokeny:     [bold cyan]{formatted}[/bold cyan] ({tokens})")
+    console.print(f"  Tokeny (szacunek): [bold cyan]{formatted}[/bold cyan] (~{tokens})")
 
     if warning:
         console.print(f"  {warning}")
@@ -315,7 +316,8 @@ def send_message(user_input: str, messages: list[dict], model_id: str) -> list[d
     try:
         reply = ask_llm(model=model_id, messages=messages)
     except (Exception, KeyboardInterrupt) as error:
-        console.print(f"Błąd/przerwanie: {type(error).__name__}", markup=False)
+        detail = str(error) if isinstance(error, NetworkError) else type(error).__name__
+        console.print(f"Błąd/przerwanie: {detail}", markup=False)
         messages.pop()
         return messages
 
@@ -458,12 +460,18 @@ def main():
 
         if user_input.lower().startswith("/mcp"):
             subcmd = user_input[4:].strip().lower()
-            if agent_state.waiting and subcmd in {"connect", "disconnect"}:
+            if agent_state.waiting and subcmd == "disconnect":
                 console.print("Najpierw sprawdź oczekujące zadanie przez /continue albo /clear.", markup=False)
                 continue
 
             if subcmd == "connect":
-                servers_with_tools = init_mcp(MCP_SERVERS_PATH)
+                try:
+                    refreshed_servers = init_mcp(MCP_SERVERS_PATH)
+                except (Exception, KeyboardInterrupt) as error:
+                    console.print(f"Łączenie MCP przerwane ({type(error).__name__}). "
+                                  "Sprawdź config/mcp_servers.json; poprzedni stan zachowany.", markup=False)
+                    continue
+                servers_with_tools = refreshed_servers
                 active_servers = [s for s in servers_with_tools if s["success"]]
                 mcp_count = len(active_servers)
                 console.print(
@@ -558,7 +566,7 @@ def main():
         tok_str = format_token_count(tokens)
         warning = get_token_warning(tokens)
         warn_str = f"  {warning}" if warning else ""
-        console.print(f"[dim]📊 Tokeny: {tok_str}{warn_str}[/dim]")
+        console.print(f"[dim]📊 Tokeny (szacunek): ~{tok_str}{warn_str}[/dim]")
 
 
 if __name__ == "__main__":

@@ -1,5 +1,9 @@
 @echo off
-cd /d C:\Users\rap1tw\1_MyScripts\Python\aico
-call venv\Scripts\activate.bat
-python aico.py
+cd /d "%~dp0"
+set PYTHONUTF8=1
+if exist "venv\Scripts\python.exe" (
+    "venv\Scripts\python.exe" aico.py
+) else (
+    python aico.py
+)
 pause

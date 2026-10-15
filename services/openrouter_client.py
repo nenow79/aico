@@ -2,6 +2,7 @@ import os
 import requests
 from dotenv import load_dotenv
 from services.agent_protocol import Completion, ProtocolError, parse_completion
+from services.network import post_completion
 
 load_dotenv()
 
@@ -67,16 +68,12 @@ def complete_openrouter(model: str, messages: list[dict], tools: list[dict] | No
     if max_output_tokens is not None:
         payload["max_tokens"] = max_output_tokens
 
-    response = requests.post(
+    data = post_completion(
         OPENROUTER_URL,
         headers=get_headers(),
         json=payload,
-        timeout=120,
     )
-
-    if not response.ok:
-        raise requests.HTTPError(f"OpenRouter HTTP {response.status_code}")
-    return parse_completion(response.json())
+    return parse_completion(data)
 
 
 def ask_openrouter(model: str, messages: list[dict]) -> str:

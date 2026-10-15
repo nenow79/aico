@@ -1,5 +1,6 @@
 import json
-import tiktoken
+import math
+import os
 
 
 def count_chat_tokens(messages: list[dict], model: str = "gpt-4") -> int:
@@ -13,6 +14,12 @@ def count_chat_tokens(messages: list[dict], model: str = "gpt-4") -> int:
     Returns:
         Przybliżona liczba tokenów
     """
+    # tiktoken may download its dictionary on first use, without an HTTP timeout.
+    # The terminal prompt must remain usable on a disconnected corporate network.
+    if os.getenv("AICO_EXACT_TOKENS", "0") != "1":
+        return 2 + sum(4 + math.ceil(len(json.dumps(message, ensure_ascii=False)) / 3)
+                       for message in messages)
+    import tiktoken
     try:
         encoding = tiktoken.encoding_for_model(model)
     except KeyError:

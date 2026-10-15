@@ -5,6 +5,7 @@ from typing import Any
 import requests
 from dotenv import load_dotenv
 from services.agent_protocol import Completion, ProtocolError, parse_completion
+from services.network import post_completion
 
 load_dotenv()
 
@@ -137,18 +138,11 @@ def complete_litellm(model: str, messages: list[dict], tools: list[dict] | None 
     if max_output_tokens is not None:
         payload["max_tokens"] = max_output_tokens
 
-    response = requests.post(
+    data = post_completion(
         LITELLM_URL,
         headers=get_litellm_headers(),
         json=payload,
-        proxies=get_proxies(),
-        timeout=120,
     )
-
-    if not response.ok:
-        raise requests.HTTPError(f"LiteLLM HTTP {response.status_code}")
-
-    data = response.json()
 
     return parse_completion(data)
 
