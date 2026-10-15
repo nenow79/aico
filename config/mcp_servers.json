@@ -1,0 +1,6 @@
+[
+  { "name": "vibecoder", "url": "http://localhost:8100/mcp" },
+  { "name": "websearch", "url": "http://localhost:8200/mcp" },
+  { "name": "redlake", "url": "http://localhost:8111/mcp" },
+    { "name": "sklr", "url": "http://localhost:8101/mcp" }
+]
