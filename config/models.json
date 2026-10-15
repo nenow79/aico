@@ -1,7 +1,7 @@
 {
-  "Z.ai: GLM 5.2": "z-ai/glm-5.2",
+  "Z.ai: GLM 5.3": "z-ai/glm-5.3",
   "Google: Gemini 3.1 Flash Lite": "google/gemini-3.1-flash-lite",
-  "Anthropic: Claude Sonnet 5": "anthropic/claude-sonnet-5",
+  "Anthropic: Claude Sonnet 5.5": "anthropic/claude-sonnet-5.5",
   "OpenAI: GPT-5.6 Terra": "openai/gpt-5.6-terra",
   "Bosch – GPT-5.4-mini": "litellm:gpt-5.4-mini",
   "Bosch – GPT-6-sol ": "litellm:gpt-6-sol",
