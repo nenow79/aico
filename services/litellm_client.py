@@ -142,6 +142,8 @@ def complete_litellm(model: str, messages: list[dict], tools: list[dict] | None 
         LITELLM_URL,
         headers=get_litellm_headers(),
         json=payload,
+        proxies=get_proxies(),
+        connect_timeout_default=120,
     )
 
     return parse_completion(data)

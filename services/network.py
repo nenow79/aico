@@ -36,8 +36,9 @@ def describe_error(error):
     return f"Błąd komunikacji ({type(error).__name__})."
 
 
-def post_completion(url, *, headers, json):
-    timeout = (seconds("LLM_CONNECT_TIMEOUT", 10), seconds("LLM_READ_TIMEOUT", 120))
+def post_completion(url, *, headers, json, proxies=None, connect_timeout_default=10):
+    timeout = (seconds("LLM_CONNECT_TIMEOUT", connect_timeout_default),
+               seconds("LLM_READ_TIMEOUT", 120))
     try:
         retries = int(os.getenv("LLM_RETRIES", "2"))
         if not 0 <= retries <= 5:
@@ -47,8 +48,11 @@ def post_completion(url, *, headers, json):
     for attempt in range(retries + 1):
         delay = min(2 ** attempt + random.random(), 30)
         try:
-            # Environment handling preserves NO_PROXY and the corporate CA bundle.
-            response = requests.post(url, headers=headers, json=json, timeout=timeout)
+            # Explicit proxy entries take precedence over environment/NO_PROXY.
+            # Copy per attempt: Requests may mutate the mapping while merging settings.
+            # With None, retain automatic proxy selection. Keep trust_env and TLS defaults.
+            options = {} if proxies is None else {"proxies": dict(proxies)}
+            response = requests.post(url, headers=headers, json=json, timeout=timeout, **options)
         except requests.exceptions.SSLError as error:
             raise NetworkError(describe_error(error)) from None
         except (requests.exceptions.ConnectionError, requests.exceptions.Timeout) as error:

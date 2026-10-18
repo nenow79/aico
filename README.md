@@ -16,13 +16,19 @@ powinny być spójne. Zmienne środowiska mają pierwszeństwo przed `.env`.
 
 Dla firmowego CA użyj pliku PEM: `REQUESTS_CA_BUNDLE` dla LLM (Requests),
 `SSL_CERT_FILE` dla HTTPS MCP (HTTPX). Nie wyłączaj weryfikacji TLS.
-LiteLLM respektuje standardowe zmienne proxy, w tym `NO_PROXY`.
+LiteLLM przekazuje jawnie `HTTP_PROXY` i `HTTPS_PROXY`, jeśli co najmniej jedna
+z tych zmiennych ma wartość — zgodnie z działającym aidev. Jawne proxy dla danego
+schematu ma pierwszeństwo również przy dopasowaniu adresu do `NO_PROXY`.
+Przy obu pustych/nieustawionych zmiennych Requests wybiera proxy automatycznie
+(z uwzględnieniem `NO_PROXY`, innych zmiennych proxy i ustawień systemu).
+Puste wpisy w `.env` nie gwarantują połączenia bez proxy. Transport MCP i OpenRouter
+pozostaje automatyczny; lokalne wyjątki `NO_PROXY` nadal są potrzebne dla MCP.
 
 ## Limity i odzyskiwanie pracy
 
 | Zmienna | Domyślnie | Znaczenie |
 | --- | ---: | --- |
-| `LLM_CONNECT_TIMEOUT` | 10 s | Nawiązanie połączenia HTTP |
+| `LLM_CONNECT_TIMEOUT` | LiteLLM: 120 s; OpenRouter: 10 s | Nawiązanie połączenia HTTP; ustawiona zmienna nadpisuje oba domyślne limity |
 | `LLM_READ_TIMEOUT` | 120 s | Maksymalna przerwa podczas odczytu HTTP |
 | `LLM_RETRIES` | 2 | Dodatkowe próby tej samej prośby do LLM |
 | `MCP_INIT_TIMEOUT` | 10 s | Inicjalizacja sesji MCP |

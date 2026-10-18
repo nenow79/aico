@@ -35,7 +35,7 @@ launcher ułatwia przewidywalną konfigurację. Nie zapisuj wartości kluczy w d
 | OPENROUTER_API_KEY | Klucz OpenRouter; autoryzacja Bearer |
 | LITELLM_URL | Firmowy endpoint chat/completions wskazany w .env.example i kodzie |
 | LLM_MAX_OUTPUT_TOKENS | 16000; dodatnia liczba dodaje max_tokens, pusta/błędna/niedodatnia pomija limit w payloadzie |
-| LLM_CONNECT_TIMEOUT | 10 s |
+| LLM_CONNECT_TIMEOUT | LiteLLM: 120 s; OpenRouter: 10 s; jawna wartość nadpisuje oba domyślne limity |
 | LLM_READ_TIMEOUT | 120 s; przerwa w odczycie, nie limit całej odpowiedzi |
 | LLM_RETRIES | 2 dodatkowe próby; dopuszczalne 0–5 |
 | MCP_INIT_TIMEOUT | 10 s |
@@ -52,6 +52,24 @@ Timeouty konfigurowane w `network.seconds` muszą być skończoną liczbą w zak
 `(0, 3600]`; niepoprawna wartość powoduje błąd, a nie wyłączenie timeoutu.
 Zmienne proxy zapisane małymi i wielkimi literami powinny być spójne.
 Przed zmianami zachowaj istniejące firmowe wyjątki NO_PROXY.[^code]
+
+### Pierwszeństwo proxy LiteLLM
+
+LiteLLM używa `proxies=get_proxies()` jak w aidev: jeśli `HTTP_PROXY` lub
+`HTTPS_PROXY` ma wartość, przekazuje mapę obu schematów do Requests. Jawny wpis
+dla schematu ma pierwszeństwo przed automatycznym wyborem, także gdy `NO_PROXY`
+pasuje do adresu LiteLLM. Wpis z `None` zostaje usunięty z mapy podczas scalania;
+nie jest to gwarancja trybu direct, bo może pozostać np. `ALL_PROXY`.
+Gdy obie zmienne są puste/nieustawione, Requests wybiera proxy automatycznie,
+z uwzględnieniem `NO_PROXY`, innych zmiennych proxy i ustawień systemowych.
+Puste wpisy `.env` nie nadpisują odziedziczonych zmiennych i nie wyłączają proxy.
+
+Jest to przywrócenie zachowania sprzed `bc95b3f`, nie potwierdzenie przyczyny
+zgłoszonej awarii. OpenRouter i MCP zachowują automatyczny wybór proxy.
+`REQUESTS_CA_BUNDLE` i weryfikacja TLS pozostają aktywne.
+Jeżeli wcześniej ustawiono `LLM_CONNECT_TIMEOUT=10` w środowisku lub `.env`,
+nowy domyślny limit LiteLLM go nie nadpisze; usuń override albo ustaw 120 s.
+Nowy `.env.example` pozostawia tę zmienną zakomentowaną.
 
 ## Limity interpretacji
 

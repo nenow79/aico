@@ -76,6 +76,20 @@ linii 200 oraz zachowanie pauzy na zgodę przy niepełnym wyniku zapisu.
 Kolejny odczyt w teście wybiera atrapa modelu: nie jest to dowód, że rzeczywisty
 LLM zawsze doczyta brakującą treść. MCP-sklr nie zmieniano.[^code]
 
+## Poprawka po porównaniu z aidev
+
+Na bazie `200925c` przygotowano poprawkę roboczą transportu LiteLLM: przywrócenie
+jawnego `get_proxies()` oraz domyślnego timeoutu połączenia 120 s. Jawna zmienna
+`LLM_CONNECT_TIMEOUT` nadal ma pierwszeństwo. Retry i weryfikację TLS zachowano;
+transport OpenRouter/MCP i launcher pozostają bez zmian.
+Pierwszeństwo jawnego proxy względem `NO_PROXY` opisuje [konfiguracja](../configuration.md).
+
+Dodano testy wyboru proxy przez rzeczywiste scalanie ustawień Requests z atrapą
+końcowego `Session.send` (bez połączeń sieciowych), zachowania CA, domyślnych
+timeoutów i kopiowania proxy między retry. Testy tej poprawki nie zostały jeszcze
+uruchomione. Działanie aidev jest informacją użytkownika; przyczyna awarii aico
+i naprawa połączenia na docelowym Windows/LiteLLM wymagają potwierdzenia.
+
 ## Ograniczenia i niepewności
 
 - Brak potwierdzonego odbioru na docelowym Windows, firmowym TLS/proxy i LiteLLM.

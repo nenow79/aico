@@ -84,6 +84,79 @@ class NetworkTests(unittest.TestCase):
             self.send()
         post.assert_called_once()
 
+    @patch("services.network.requests.post")
+    def test_provider_timeout_defaults_and_environment_override(self, post):
+        post.return_value = response()
+        with patch.dict(os.environ, {}, clear=True):
+            post_completion("https://example.invalid", headers={}, json={})
+            self.assertEqual(post.call_args.kwargs["timeout"], (10, 120))
+            post_completion("https://example.invalid", headers={}, json={},
+                            connect_timeout_default=120)
+            self.assertEqual(post.call_args.kwargs["timeout"], (120, 120))
+            with patch.dict(os.environ, {"LLM_CONNECT_TIMEOUT": "45"}):
+                post_completion("https://example.invalid", headers={}, json={},
+                                connect_timeout_default=120)
+                self.assertEqual(post.call_args.kwargs["timeout"], (45, 120))
+
+    @patch("services.network.time.sleep")
+    @patch("services.network.requests.post")
+    def test_explicit_proxy_is_copied_for_each_retry(self, post, sleep):
+        original = {"https": "http://proxy.invalid:8080"}
+        seen = []
+        def send(*args, **kwargs):
+            seen.append(dict(kwargs["proxies"]))
+            kwargs["proxies"]["http"] = "http://other.invalid:8080"
+            return response(503 if len(seen) == 1 else 200)
+        post.side_effect = send
+        post_completion("https://example.invalid", headers={}, json={}, proxies=original)
+        self.assertEqual(seen, [original, original])
+        self.assertEqual(original, {"https": "http://proxy.invalid:8080"})
+
+    @patch("services.network.requests.sessions.Session.send")
+    def test_litellm_proxy_selection_and_ca_without_network(self, send):
+        # Exercise real Requests preparation and environment merging, not requests.post.
+        # Stub only the final send: no DNS, sockets, API keys or real provider calls.
+        from services import litellm_client
+        envelope = {"choices": [{"message": {"role": "assistant", "content": "OK"},
+                                 "finish_reason": "stop"}]}
+        cases = [
+            ({}, {}, True),
+            ({"HTTPS_PROXY": "", "HTTP_PROXY": "",
+              "ALL_PROXY": "http://all.invalid:8080"},
+             {"all": "http://all.invalid:8080"}, True),
+            ({"HTTPS_PROXY": "http://proxy.invalid:8080", "NO_PROXY": "example.invalid"},
+             {"https": "http://proxy.invalid:8080"}, True),
+            ({"https_proxy": "http://lower.invalid:8080"},
+             {"https": "http://lower.invalid:8080"}, True),
+            ({"https_proxy": "http://lower.invalid:8080", "NO_PROXY": "example.invalid"},
+             {}, True),
+            ({"REQUESTS_CA_BUNDLE": "test-company-ca.pem"}, {}, "test-company-ca.pem"),
+        ]
+        for environment, expected_proxies, expected_verify in cases:
+            with self.subTest(environment=environment), patch.dict(os.environ, environment, clear=True), \
+                    patch.object(litellm_client, "LITELLM_URL", "https://example.invalid/v1/chat/completions"), \
+                    patch.object(litellm_client, "get_litellm_headers", return_value={}):
+                send.return_value = response(data=envelope)
+                result = litellm_client.complete_litellm("litellm:test-model", [])
+                self.assertEqual(result.message["content"], "OK")
+                actual = send.call_args.kwargs
+                selected = {key: value for key, value in actual["proxies"].items()
+                            if key != "no"}
+                self.assertEqual(selected, expected_proxies)
+                self.assertEqual(actual["verify"], expected_verify)
+                self.assertEqual(actual["timeout"], (120, 120))
+                send.return_value.close.assert_called_once()
+
+    @patch("services.network.requests.sessions.Session.send")
+    def test_default_transport_keeps_no_proxy_without_network(self, send):
+        send.return_value = response()
+        with patch.dict(os.environ, {"HTTPS_PROXY": "http://proxy.invalid:8080",
+                                     "NO_PROXY": "example.invalid"}, clear=True):
+            post_completion("https://example.invalid", headers={}, json={})
+        self.assertEqual(send.call_args.kwargs["proxies"], {})
+        self.assertIs(send.call_args.kwargs["verify"], True)
+        self.assertEqual(send.call_args.kwargs["timeout"], (10, 120))
+
     def test_invalid_timeout_cannot_disable_limits(self):
         for value in ("0", "-1", "nan", "inf", "oops"):
             with patch.dict(os.environ, {"MCP_CALL_TIMEOUT": value}):
