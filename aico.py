@@ -33,6 +33,9 @@ from services.llm_client import (
 from services.mcp_runner import load_all_tools, load_mcp_servers
 from services.native_runner import AgentState, run_native
 from services.network import NetworkError
+from services.provider_session import ProviderSession
+from services.llm_client import PROVIDER_LABELS
+from services.agent_protocol import ProtocolError
 from services.response_reader import last_assistant_response, read_response
 from services.token_counter import (
     count_chat_tokens,
@@ -40,7 +43,7 @@ from services.token_counter import (
     get_token_warning,
 )
 
-load_dotenv()
+load_dotenv(Path(__file__).resolve().parent / ".env")
 
 # ---------------------------------------------------------------------------
 # Konfiguracja
@@ -71,7 +74,37 @@ def load_models() -> dict[str, str]:
         console.print("[red]Plik models.json jest pusty lub niepoprawny.[/red]")
         sys.exit(1)
 
+    try:
+        for label, model in data.items():
+            if not isinstance(label, str) or not label.strip():
+                raise ProtocolError("Niepoprawna etykieta modelu.")
+            get_model_provider(model)
+    except ProtocolError as error:
+        console.print(str(error), markup=False)
+        sys.exit(1)
     return data
+
+
+def pick_provider(models: dict[str, str]) -> ProviderSession:
+    console.print(Panel.fit("[bold cyan]aico[/bold cyan] – wybierz providera sesji", border_style="cyan"))
+    providers = list(PROVIDER_LABELS)
+    for i, provider in enumerate(providers, 1):
+        count = len(ProviderSession(provider).models(models))
+        console.print(f"{i}. {PROVIDER_LABELS[provider]} ({count} modeli)", markup=False)
+    console.print("Provider pozostaje stały także po /clear; zmiana wymaga restartu.", markup=False)
+    while True:
+        try:
+            raw = console.input("Wybierz numer providera: ").strip()
+        except (KeyboardInterrupt, EOFError):
+            sys.exit(0)
+        if not raw.isdigit() or not 1 <= int(raw) <= len(providers):
+            console.print("Podaj numer z listy.", markup=False)
+            continue
+        selected = ProviderSession(providers[int(raw) - 1])
+        if not selected.models(models):
+            console.print("Brak modeli tego providera w config/models.json.", markup=False)
+            continue
+        return selected
 
 
 # ---------------------------------------------------------------------------
@@ -220,16 +253,16 @@ def cmd_help():
     table.add_column(style="dim")
 
     table.add_row("/help",           "Pokaż tę pomoc")
-    table.add_row("/continue",       "Wznów pauzę; oczekujące zadanie najpierw sprawdza get_task")
+    table.add_row("/continue, /c",   "Wznów pauzę; oczekujące zadanie najpierw sprawdza get_task")
     table.add_row("/steps N",        "Budżet kroków na uruchomienie (domyślnie 40)")
     table.add_row("Ctrl+C",          "Przerwij agenta; nie anuluje zadania uruchomionego w MCP")
-    table.add_row("/model",          "Zmień model")
+    table.add_row("/model",          "Zmień model tylko w ramach wybranego providera")
     table.add_row("/mcp",            "Pokaż status serwerów MCP i tools")
     table.add_row("/mcp connect",    "Połącz z serwerami MCP z pliku konfiguracyjnego")
     table.add_row("/mcp disconnect", "Rozłącz serwery MCP")
     table.add_row("/tokens",         "Szczegółowy licznik tokenów")
     table.add_row("/read",           "Czytaj ostatnią odpowiedź od początku; Esc/q wraca do rozmowy")
-    table.add_row("/clear",          "Wyczyść historię czatu")
+    table.add_row("/clear",          "Wyczyść historię; provider sesji pozostaje bez zmian")
     table.add_row("/cls",            "Wyczyść ekran terminala")
     table.add_row("/export",         "Zapisz czat do pliku Markdown")
     table.add_row("/exit",           "Wyjście")
@@ -372,7 +405,10 @@ def send_message_mcp(
 
 def main():
     models = load_models()
-    model_label, model_id = pick_model(models)
+    provider_session = pick_provider(models)
+    session_models = provider_session.models(models)
+    model_label, model_id = pick_model(session_models)
+    provider_session.validate_model(model_id)
 
     # Sprawdź klucz API
     if not has_llm_api_key(model_id):
@@ -441,7 +477,7 @@ def main():
             cmd_help()
             continue
 
-        if user_input.lower() == "/continue":
+        if user_input.lower() in ("/continue", "/c"):
             if not active_servers:
                 console.print("Najpierw /mcp connect.", markup=False)
             elif not agent_state.resumable:
@@ -527,12 +563,14 @@ def main():
             if agent_state.waiting:
                 console.print("Najpierw zakończ oczekujące zadanie przez /continue albo /clear.", markup=False)
                 continue
-            candidate_label, candidate_id = pick_model(models)
+            candidate_label, candidate_id = pick_model(session_models)
+            try:
+                provider_session.validate_model(candidate_id)
+            except ValueError as error:
+                console.print(str(error), markup=False)
+                continue
             if not has_llm_api_key(candidate_id):
                 console.print(get_missing_api_key_message(candidate_id), markup=False)
-                continue
-            if messages and get_model_provider(candidate_id) != get_model_provider(model_id):
-                console.print("Zmiana dostawcy z historią zablokowana. Najpierw /export (opcjonalnie) i /clear.", markup=False)
                 continue
             model_label, model_id = candidate_label, candidate_id
             agent_state = AgentState()
@@ -552,6 +590,7 @@ def main():
             continue
 
         # --- Wiadomość do modelu ---
+        provider_session.validate_model(model_id)
         if agent_state.waiting:
             console.print("Agent czeka na zadanie MCP. Sprawdź panel i użyj /continue; /clear porzuca kontekst.", markup=False)
             continue
