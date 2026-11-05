@@ -21,15 +21,19 @@ wdrożenia.[^launcher]
 2. Sprawdź `python --version` oraz interpreter aktywnego środowiska. Launcher
    preferuje `venv\Scripts\python.exe`; jeżeli go brak, używa `python` z PATH,
    np. aktywnej condy. Ustawia UTF-8 i przechodzi do własnego katalogu.
-3. Przygotuj `.env` z `.env.example`, kluczem LiteLLM i właściwym endpointem.
+3. Przygotuj `.env` z `.env.example`, kluczem wybranego providera i endpointem.
+   Dla BMF ustaw lokalnie `BMF_API_KEY`; nie wklejaj go do rozmowy ani dokumentacji.
    Dopasuj proxy i CA, zachowując lokalne wyjątki NO_PROXY. Sprawdź zmienne
    odziedziczone z systemu — mają pierwszeństwo przed `.env`.[^configuration]
-4. W models.json wybierz identyfikator dostępny w firmowym LiteLLM z prefiksem
-   `litellm:`. Potwierdź obsługę natywnych tools przez wybrany model.
+4. W models.json sprawdź modele wybranego providera. LiteLLM używa `litellm:`,
+   BMF `bmf:azure:DEPLOYMENT` lub `bmf:vertex:google/GEMINI_ID`.
+   Wpis nie dowodzi uprawnień subskrypcji. Potwierdź obsługę natywnych tools.
 5. W mcp_servers.json wskaż właściwy adres sklr (obecny przykład: port 8101).
    Wyłącz nieużywane serwery przez `enabled: false`.
 6. Uruchom `aico.bat` lub `python aico.py` w przygotowanym środowisku.
-   Wybierz model, sprawdź zwykłą rozmowę, następnie `/mcp connect` i `/mcp`.
+   Wybierz provider, następnie model; sprawdź zwykłą rozmowę, `/mcp connect` i `/mcp`.
+   Sprawdź, że `/model` pokazuje tylko jego modele, również po `/clear`.
+   Zmiana providera wymaga ponownego uruchomienia AICO.
 7. Sprawdź odczyt testowego pliku w zatwierdzonym roocie, a potem pojedynczą
    uzgodnioną edycję wymagającą zgody. Po decyzji w panelu użyj `/continue`;
    sprawdź rzeczywisty wynik i brak duplikatu zadania.

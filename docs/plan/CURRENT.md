@@ -27,7 +27,12 @@ głównie z LiteLLM i MCP-sklr.[^code][^session]
 - CLI używa Rich i prompt_toolkit; MCP podłącza się poleceniem `/mcp connect`.
 - Aktywny runner używa natywnych `tool_calls`, zachowuje historię protokołu,
   obsługuje pauzę, `/continue` i zadania wymagające zgody w panelu sklr.
-- LiteLLM i OpenRouter są rozdzielone; brak automatycznego fallbacku dostawcy.
+- OpenRouter, Bosch LiteLLM i Bosch Model Farm są rozdzielone; brak fallbacku.
+  Provider wybierany jest przed modelem i pozostaje stały przez cały proces.
+  `/model` ogranicza wybór do tego providera; `/clear` nie znosi ograniczenia.
+- Adapter BMF obsługuje OpenAI przez Azure OpenAI oraz Gemini przez Vertex
+  OpenAI-compatible. Dodano GPT-5.4 mini i Gemini 3.1 Flash-Lite jako wpisy
+  konfiguracji, nie jako potwierdzone dostępne modele subskrypcji.
 - Historia i stan oczekującego zadania pozostają w pamięci. Eksport Markdown
   nie zapewnia przywracania sesji.
 - Implementacja obejmuje timeouty MCP, ograniczone retry LLM, obsługę proxy przez
@@ -86,9 +91,70 @@ Pierwszeństwo jawnego proxy względem `NO_PROXY` opisuje [konfiguracja](../conf
 
 Dodano testy wyboru proxy przez rzeczywiste scalanie ustawień Requests z atrapą
 końcowego `Session.send` (bez połączeń sieciowych), zachowania CA, domyślnych
-timeoutów i kopiowania proxy między retry. Testy tej poprawki nie zostały jeszcze
-uruchomione. Działanie aidev jest informacją użytkownika; przyczyna awarii aico
+timeoutów i kopiowania proxy między retry. Testy wykonano później w Windows
+w ramach zestawu 56 testów opisanego poniżej; po korekcie oczekiwania dotyczącego
+wielkości liter nazw zmiennych wszystkie przeszły. Działanie aidev jest informacją użytkownika; przyczyna awarii aico
 i naprawa połączenia na docelowym Windows/LiteLLM wymagają potwierdzenia.
+
+## Dodanie BMF i audyt dokumentacji
+
+Zapisano adapter BMF, ProviderSession, routing i integrację CLI oraz testy
+`tests/test_providers.py`. Wykonano cały zestaw offline w Windows, interpreterem
+`venv/Scripts/python.exe`, Python 3.14.7: 56 testów, 54 zaliczone, 1 błąd i 1 failure.
+Wszystkie 11 nowych testów BMF/providerów przeszło. Wykryto brak podłączenia
+modułu kompletności do runnera, referencję do zmiennej historii w teście oraz
+nieprzenośne oczekiwanie proxy (Windows nie rozróżnia wielkości liter nazw zmiennych).
+Po zapisaniu poprawek ponownie wykonano cały zestaw tym samym interpreterem:
+56/56 testów zaliczonych, bez błędów i pominięć (zadanie sklr 2146, unittest).
+To testy offline z atrapami transportu, nie potwierdzenie działania BMF ani MCP w sieci.
+Nie wykonywano wywołań BMF ani nie odczytywano kluczy użytkownika.
+Endpointy i identyfikatory pochodzą z Docupedii, Model Endpoint Reference V61,
+sekcje #1 i #3. Weryfikacja rzeczywistego tool calling, limitów, proxy i dostępu
+subskrypcji pozostaje do wykonania. Native runner ponownie podłączono do istniejącego
+modułu kompletności; zachowano odczyt stanu zadania z oryginalnego wyniku i pauzy.
+Transportu LiteLLM i MCP-sklr nie zmieniano.
+
+Audyt sklr obejmujący archiwum rozpoznał 9 dokumentów OKF bez błędów i ostrzeżeń.
+Dwa źródła `.vibecoder_*` pozostają historycznym Markdown bez konwersji.
+Root aico i projektowy indeks docs są dostępne w obecnej sesji sklr (8 dokumentów
+poza archiwum). Potwierdzono odczyt plików i dostęp do zbioru; nie jest to test
+połączenia z poziomu uruchomionej aplikacji AICO ani odbiór docelowej instalacji.
+
+## Rozszerzenie listy modeli BMF
+
+Dodano GPT-6 Sol/Luna, Gemini 3.7 Flash, Gemini 4 Argon, Claude Sonnet 4.6/5.5,
+Qwen 3.8 27B i GLM-5.2. Łącznie konfiguracja zawiera 10 modeli BMF.
+Claude korzysta z natywnego Vertex rawPredict i konwersji historii/tools przez
+`services/anthropic_protocol.py`; Qwen/GLM z Bosch MSP OpenAI-compatible.
+Identyfikatory pochodzą z Model Endpoint Reference V61; wzorzec rawPredict
+z Code Examples V62. Extended thinking i streaming nie są włączone.
+
+Wykonano pełny zestaw unittest przez `venv/Scripts/python.exe`, Python 3.14.7
+na Windows: 63/63 testy zaliczone, bez błędów i pominięć (zadanie sklr 2175).
+Siedem nowych testów obejmuje routing MSP, konfigurację modeli, konwersję historii,
+schemat tools Claude, odrzucanie nieobsługiwanych odpowiedzi, ucięcie oraz
+cykl tool_use/tool_result w runnerze. To testy offline, nie odbiór sieciowy.
+Użytkownik potwierdził działanie wcześniejszej integracji BMF bez wskazania modelu
+i scenariusza; nie rozszerzamy tego potwierdzenia na wszystkie nowe modele.
+Nie wykonywano płatnych wywołań nowych modeli ani nie odczytywano kluczy.
+
+## Ręczna kompakcja kontekstu i wyróżnienie promptów
+
+Dodano roboczą komendę `/compact` i `services/context_compactor.py`.
+Aktualny model otrzymuje transkrypcję do streszczenia bez udostępnionych tools.
+Nie ma automatycznego eksportu; pełną rozmowę użytkownik może zachować przez
+`/export` przed kompakcją. Podmiana jest warunkowa: kompletna odpowiedź bez tools
+i mniejszy szacunek kontekstu. Oryginalne wiadomości systemowe oraz ostatnia
+pełna tura pozostają; przy pojedynczej turze zostaje samo podsumowanie.
+Podsumowanie nie rozszerza zgód. Pauza agenta, oczekujące zadanie lub pending
+blokują komendę. Błąd i przerwanie zachowują oryginalną historię.
+Opis użytkowy: [README](../../README.md#ręczne-skracanie-kontekstu).
+
+Prompty CLI mają jasnoturkusowy tekst i pogrubione `TY ›`, przy szarych
+metadanych. Wygląd MCP i odpowiedzi pozostaje bez zmian. Po zmianie promptów
+wykonano 63/63 testy unittest offline na Windows, Python 3.14.7 (zadanie 2382).
+Nie jest to wizualny odbiór terminala. Dodano testy kompakcji z atrapą LLM;
+wynik ich uruchomienia i rzeczywista jakość streszczeń wymagają potwierdzenia.
 
 ## Ograniczenia i niepewności
 
@@ -97,10 +163,12 @@ i naprawa połączenia na docelowym Windows/LiteLLM wymagają potwierdzenia.
 - Timeout HTTP nie ogranicza bezwzględnego czasu całej odpowiedzi; anulowanie
   klienta MCP nie dowodzi anulowania zadania na serwerze.
 - Brak trwałego odtwarzania sesji, ścisłego budżetu czasu tury i automatycznego
-  zarządzania rozmiarem historii. Pełne wyniki narzędzi mogą powiększać kontekst.
+  zarządzania rozmiarem historii. Ręczne `/compact` jest stratne i wymaga miejsca
+  na transkrypcję oraz odpowiedź. Pełne wyniki narzędzi mogą powiększać kontekst.
 - Wersje zależności nie są przypięte; brak potwierdzonej macierzy zgodności.
 - Nie ustalono, czy starszy runner ma użytkowników poza CLI.
-- Nie potwierdzono rejestracji roota aico ani indeksowania docs w działającym sklr.
+- Odczyt docs i indeks sklr są dostępne w obecnej sesji; połączenie i wyszukiwanie
+  wykonywane przez aplikację AICO nadal wymagają odbioru.
 - Historyczne rozbieżności i zakres migracji opisuje raport.[^code][^review]
 
 Otwarta praca i proponowana kolejność są wyłącznie w [backlogu](backlog.md).

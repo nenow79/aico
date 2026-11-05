@@ -128,8 +128,10 @@ class NetworkTests(unittest.TestCase):
              {"https": "http://proxy.invalid:8080"}, True),
             ({"https_proxy": "http://lower.invalid:8080"},
              {"https": "http://lower.invalid:8080"}, True),
+            # Windows environment variable names are case-insensitive:
+            # get_proxies sees lowercase https_proxy as explicit HTTPS_PROXY.
             ({"https_proxy": "http://lower.invalid:8080", "NO_PROXY": "example.invalid"},
-             {}, True),
+             {"https": "http://lower.invalid:8080"} if os.name == "nt" else {}, True),
             ({"REQUESTS_CA_BUNDLE": "test-company-ca.pem"}, {}, "test-company-ca.pem"),
         ]
         for environment, expected_proxies, expected_verify in cases:

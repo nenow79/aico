@@ -10,6 +10,7 @@ from services.agent_protocol import (
 )
 from services.mcp_client import call_mcp_tool
 from services.network import NetworkError
+from services.mcp_completeness import READING_POLICY, completeness_notice
 
 
 SYSTEM_PROMPT = """Jesteś agentem terminalowym aico. Korzystaj z narzędzi MCP przez natywne tool_calls.
@@ -55,9 +56,13 @@ def run_native(messages: list[dict], model: str, servers_with_tools: list[dict],
         if on_status:
             on_status(reason, text)
 
-    def add_result(call, value):
+    def add_result(call, value, tool_name=None):
+        notice = completeness_notice(tool_name or call["function"]["name"], value)
+        stored = {"mcp_result": value, "aico_notice": notice} if notice else value
         messages.append({"role": "tool", "tool_call_id": call["id"],
-                         "content": serialize_result(value)})
+                         "content": serialize_result(stored)})
+        if notice and on_status:
+            on_status("incomplete_result", notice)
 
     def skip_remaining(text):
         while state.pending:
@@ -94,7 +99,7 @@ def run_native(messages: list[dict], model: str, servers_with_tools: list[dict],
                 raise
             value = public_result(unwrap_mcp_result(result.get("result")))
             add_result(call, value if result.get("success") else {
-                "success": False, "error": "Nie udało się sprawdzić zadania MCP."})
+                "success": False, "error": "Nie udało się sprawdzić zadania MCP."}, tool_name="get_task")
             if not result.get("success") or not isinstance(value, dict) or value.get("success") is False:
                 status("error", "Nie udało się sprawdzić zadania. /continue ponowi tylko odczyt stanu.")
                 return messages
@@ -115,7 +120,7 @@ def run_native(messages: list[dict], model: str, servers_with_tools: list[dict],
         for round_number in range(1, max_iterations + 1):
             status("waiting_for_model", f"Krok {round_number}/{max_iterations} — czekam na model...")
             completion = completion_fn(model=model, messages=[
-                {"role": "system", "content": SYSTEM_PROMPT}, *messages,
+                {"role": "system", "content": SYSTEM_PROMPT + "\n" + READING_POLICY}, *messages,
             ], tools=tools)
             state.usage = dict(completion.usage)
             if completion.finish_reason in {"length", "max_tokens", "content_filter"}:
@@ -178,7 +183,7 @@ def run_native(messages: list[dict], model: str, servers_with_tools: list[dict],
                            "Brak automatycznego ponowienia. /continue tylko po ocenie stanu.")
                     return messages
                 value = public_result(unwrap_mcp_result(result.get("result")))
-                add_result(call, value)
+                add_result(call, value, tool_name=name)
                 if on_status:
                     on_status("tool_result", serialize_result(value))
                 data = value.get("data", value) if isinstance(value, dict) else {}

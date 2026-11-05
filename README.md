@@ -67,6 +67,30 @@ proxy. Nawet tiktoken jest tu szacunkiem: nie obejmuje schematów MCP ani wszyst
 różnic między modelami. Historia pozostaje w pamięci; `/export` zapisuje Markdown,
 ale nie jest mechanizmem odtwarzania sesji po zamknięciu procesu.
 
+## Ręczne skracanie kontekstu
+
+`/compact` wysyła bieżącą historię do aktualnego modelu po podsumowanie celu,
+ustaleń, wymagań, wykonanych zmian, wyników testów i otwartych zadań.
+Nie udostępnia narzędzi MCP i nie zapisuje pliku. Jeśli chcesz zachować pełną
+rozmowę, wykonaj osobno `/export` **przed** `/compact`.
+
+Po kompletnej odpowiedzi komenda zastępuje starszą historię oznaczonym
+podsumowaniem, zachowuje wiadomości systemowe oraz ostatnią pełną turę
+użytkownika wraz z odpowiedziami i parami wywołań/wyników MCP. Przy jednej
+turze zostaje samo podsumowanie. Wbudowane instrukcje runnera MCP są nadal
+dodawane przy kolejnych wywołaniach. Provider i model nie zmieniają się.
+
+Pusta, ucięta lub zablokowana odpowiedź, próba wywołania narzędzi, błąd,
+Ctrl+C albo brak zmniejszenia szacowanej liczby tokenów pozostawiają historię
+bez zmian. Podczas pauzy agenta lub oczekiwania na zadanie MCP komenda jest
+zablokowana. Podsumowanie jest stratne i nie nadaje nowych zgód. Oryginału
+usuniętego z pamięci nie odzyskasz przez późniejszy `/export`.
+
+Używaj komendy przed osiągnięciem limitu modelu: historia przesyłana jako
+transkrypcja JSON oraz miejsce na odpowiedź też zajmują kontekst. To płatne
+wywołanie LLM według zasad dostawcy; obowiązują istniejące timeouty i retry.
+Komenda pokazuje szacowaną liczbę tokenów przed i po; schematy MCP nie są liczone.
+
 ## Sprawdzenie przed wdrożeniem
 
 Testy offline aico: `python -m unittest discover -s tests -v`.

@@ -17,14 +17,16 @@ sources:
 
 ## Aktywny przepływ
 
-Terminal → router dostawcy → LiteLLM/OpenRouter → natywne tool_calls → klient MCP
+Terminal → provider wybrany na sesję → model tego providera → LiteLLM/OpenRouter/BMF
+→ natywne tool_calls → klient MCP
 → serwer MCP → wynik w historii → kolejna odpowiedź modelu.[^code]
 
 | Element | Odpowiedzialność |
 | --- | --- |
-| aico.py | Wybór modelu, REPL, komendy, renderowanie, historia i AgentState |
-| services/llm_client.py | Wybór dostawcy po identyfikatorze modelu |
-| services/litellm_client.py, openrouter_client.py | Payload i autoryzacja właściwego API |
+| aico.py | Wybór providera, następnie modelu; REPL, komendy, historia i AgentState |
+| services/provider_session.py | Niezmienny provider sesji, filtrowanie i walidacja modeli |
+| services/llm_client.py | Jawny routing po prefiksie; nieznane prefiksy odrzucane |
+| services/litellm_client.py, openrouter_client.py, bmf_client.py | Payload i autoryzacja właściwego API |
 | services/network.py | Timeouty HTTP, ograniczone retry i komunikaty błędów |
 | services/agent_protocol.py | Walidacja odpowiedzi, aliasy narzędzi, JSON argumentów i wyników |
 | services/native_runner.py | Aktywna pętla agenta, budżet kroków, pauzy i stan zadania |
@@ -43,6 +45,17 @@ przy wyborze ostatniej odpowiedzi.[^reader]
 Brak aktywnych serwerów oznacza zwykłą rozmowę bez narzędzi. Konfigurację MCP
 wczytuje się jawnie przez `/mcp connect`. Listowanie serwerów jest sekwencyjne.
 Klient tworzy sesję na każdą operację; CLI nie utrzymuje stałego połączenia.[^code]
+
+## Provider sesji
+
+Przy starcie użytkownik wybiera OpenRouter, Bosch LiteLLM albo Bosch Model Farm,
+następnie model tylko tego providera. `/model` filtruje tę samą listę, a `/clear`
+nie zmienia providera. Zmiana dostawcy wymaga ponownego uruchomienia procesu.
+Nie ma fallbacku. BMF obejmuje Azure OpenAI i Vertex OpenAI-compatible dla Gemini;
+rozszerzenie obejmuje również Claude Vertex rawPredict oraz Qwen/GLM Bosch MSP.
+Moduł `services/anthropic_protocol.py` konwertuje historię i narzędzia Claude;
+nie włącza extended thinking ani streamingu. Zakres wykonanych testów offline opisuje CURRENT. Szczegóły: [konfiguracja](configuration.md).
+Opis dotyczy zapisanej zmiany roboczej; stan testów znajduje się w CURRENT.
 
 ## Stan i granice
 

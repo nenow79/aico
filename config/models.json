@@ -1,11 +1,22 @@
 {
   "Z.ai: GLM 5.3": "z-ai/glm-5.3",
   "Google: Gemini 3.1 Flash Lite": "google/gemini-3.1-flash-lite",
+  "Google: Gemini 3.8 Flash": "google/gemini-3.8-flash",
   "Anthropic: Claude Sonnet 5.5": "anthropic/claude-sonnet-5.5",
-  "OpenAI: GPT-5.6 Terra": "openai/gpt-5.6-terra",
+  "OpenAI: GPT-6 Luna": "openai/gpt-6-luna",
   "Bosch – GPT-5.4-mini": "litellm:gpt-5.4-mini",
   "Bosch – GPT-6-sol ": "litellm:gpt-6-sol",
   "Bosch – gemini-3-1-flash-lite": "litellm:gemini-3-1-flash-lite",
   "Bosch – claude-sonnet-4-6": "litellm:claude-sonnet-4-6",
-  "Bosch – claude-sonnet-5-5": "litellm:claude-sonnet-5-5"
+  "Bosch – claude-sonnet-5-5": "litellm:claude-sonnet-5-5",
+  "BMF – GPT-5.4 mini": "bmf:azure:gpt-5.4-mini-2026-03-17",
+  "BMF – Gemini 3.1 Flash-Lite": "bmf:vertex:google/gemini-3.1-flash-lite",
+  "BMF – GPT-6 Sol": "bmf:azure:gpt-6-sol-2026-09-22",
+  "BMF – GPT-6 Luna": "bmf:azure:gpt-6-luna-2026-09-22",
+  "BMF – Gemini 3.7 Flash": "bmf:vertex:google/gemini-3.7-flash",
+  "BMF – Gemini 4 Argon": "bmf:vertex:google/gemini-4-argon",
+  "BMF – Qwen 3.8 27B": "bmf:msp:qwen3.8-27b",
+  "BMF – GLM-5.2": "bmf:msp:glm-5.2",
+  "BMF – Claude Sonnet 4.6": "bmf:anthropic:claude-sonnet-4-6",
+  "BMF – Claude Sonnet 5.5": "bmf:anthropic:claude-sonnet-5-5"
 }

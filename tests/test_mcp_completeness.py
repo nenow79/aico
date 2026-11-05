@@ -32,7 +32,8 @@ class CompletenessTests(unittest.TestCase):
                 "line_numbers": True, "max_chars": 12000})), final_response()])
         seen, executed, notices = [], [], []
         def completion(**kwargs):
-            seen.append(kwargs)
+            # Capture the request at dispatch, not references to mutable history.
+            seen.append(copy.deepcopy(kwargs))
             return next(responses)
         def tool(**kwargs):
             executed.append(json.loads(kwargs["arguments_json"]))

@@ -16,8 +16,18 @@ sources:
 ## Zatwierdzony zakres dokumentacyjny
 
 - Odebrać treść nowych dokumentów i lokalny raport walidacji.
-- Oddzielnie sprawdzić widoczność docs i odczyt/wyszukiwanie w docelowym MCP,
-  gdy środowisko będzie dostępne; bez zmiany polityki zapisu.[^approval]
+- Odbiór odczytu/wyszukiwania docs z poziomu aplikacji AICO nadal jest otwarty.
+  Root i projektowy indeks są już dostępne w obecnej sesji sklr; nie zmieniano
+  polityki zapisu.[^approval]
+
+## Zatwierdzona zmiana providerów — odbiór
+
+- Sprawdzić lokalnie BMF OpenAI/Gemini po ustawieniu klucza przez użytkownika:
+  rozmowa, natywne tools, kontrolowany odczyt MCP, zgoda i wznowienie.
+- Odbiór na Windows obejmuje także proxy/CA i brak przełączenia providera po błędzie.
+- Sprawdzić nowe modele BMF, w tym Claude Sonnet 4.6/5.5 oraz Qwen/GLM MSP,
+  przez rzeczywiste API i kontrolowany cykl MCP; testy offline opisano w CURRENT.
+- Extended thinking i streaming pozostają poza tym rozszerzeniem.
 
 ## Propozycje techniczne — nie są zleceniem implementacji
 

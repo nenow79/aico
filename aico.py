@@ -10,6 +10,7 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 from prompt_toolkit import PromptSession
+from prompt_toolkit.formatted_text import FormattedText
 from prompt_toolkit.history import InMemoryHistory
 from prompt_toolkit.styles import Style
 from rich.console import Console
@@ -37,6 +38,7 @@ from services.provider_session import ProviderSession
 from services.llm_client import PROVIDER_LABELS
 from services.agent_protocol import ProtocolError
 from services.response_reader import last_assistant_response, read_response
+from services.context_compactor import compact_history
 from services.token_counter import (
     count_chat_tokens,
     format_token_count,
@@ -201,11 +203,15 @@ def init_mcp(servers_path: Path) -> list[dict]:
 # Prompt string (prompt_toolkit)
 # ---------------------------------------------------------------------------
 
-def build_prompt_text(model_label: str, messages: list[dict], mcp_count: int) -> str:
+def build_prompt_text(model_label: str, messages: list[dict], mcp_count: int) -> FormattedText:
     tokens = count_chat_tokens(messages)
     tok_str = format_token_count(tokens)
     mcp_str = f"MCP:{mcp_count}" if mcp_count > 0 else "MCP:off"
-    return f"[{model_label} | ~{tok_str} | {mcp_str}] > "
+    # Fragmenty zamiast HTML: etykieta modelu pozostaje dosłownym tekstem.
+    return FormattedText([
+        ("class:prompt-meta", f"[{model_label} | ~{tok_str} | {mcp_str}] "),
+        ("class:prompt-user", "TY › "),
+    ])
 
 
 # ---------------------------------------------------------------------------
@@ -265,6 +271,7 @@ def cmd_help():
     table.add_row("/clear",          "Wyczyść historię; provider sesji pozostaje bez zmian")
     table.add_row("/cls",            "Wyczyść ekran terminala")
     table.add_row("/export",         "Zapisz czat do pliku Markdown")
+    table.add_row("/compact",        "Streść i zmniejsz kontekst przez aktualny model; bez eksportu")
     table.add_row("/exit",           "Wyjście")
 
     console.print()
@@ -325,6 +332,30 @@ def cmd_export(model_label: str, model_id: str, messages: list[dict]):
     filepath.write_text(content, encoding="utf-8")
     console.print(f"  [green]✓[/green] Eksport zapisany: [bold]{filepath}[/bold]")
     console.print()
+
+
+def cmd_compact(messages: list[dict], model_id: str, state: AgentState) -> list[dict]:
+    if state.resumable or state.waiting or state.pending:
+        console.print("/compact niedostępne podczas pauzy agenta lub oczekiwania na MCP. "
+                      "Najpierw zakończ pracę przez /continue i sprawdź stan zadania.", markup=False)
+        return messages
+    if not any(m.get("role") != "system" for m in messages):
+        console.print("Brak rozmowy do streszczenia.", markup=False)
+        return messages
+    console.print("Streszczam rozmowę przez aktualny model, bez MCP. "
+                  "Nie zapisuję eksportu; podsumowanie może pomijać szczegóły...", markup=False)
+    try:
+        before = count_chat_tokens(messages)
+        compacted = compact_history(messages, model_id)
+        after = count_chat_tokens(compacted)
+    except (Exception, KeyboardInterrupt) as error:
+        detail = str(error) if isinstance(error, (ValueError, NetworkError)) else type(error).__name__
+        console.print(f"/compact: {detail}. Historia bez zmian.", markup=False)
+        return messages
+    console.print(f"Kontekst zmniejszony: ~{format_token_count(before)} → "
+                  f"~{format_token_count(after)} tokenów (szacunek). "
+                  "Możesz kontynuować rozmowę.", markup=False)
+    return compacted
 
 
 def cmd_clear(messages: list[dict]) -> list[dict]:
@@ -427,7 +458,8 @@ def main():
     console.print(Panel.fit(
         f"Model: [bold]{model_label}[/bold]  [{color}]({provider})[/{color}]\n"
         f"MCP:   [cyan]{mcp_count} server(s) aktywnych[/cyan]\n"
-        f"Wpisz [bold cyan]/help[/bold cyan] po listę komend.",
+        f"Wpisz [bold cyan]/help[/bold cyan] po listę komend.\n"
+        "[dim]Kontakt: Pawel Rajko-Nenow · WwP/MFD (developer)[/dim]",
         border_style="dim",
     ))
     console.print()
@@ -436,7 +468,11 @@ def main():
     messages: list[dict] = []
 
     # prompt_toolkit session (historia strzałkami ↑↓)
-    pt_style = Style.from_dict({"": "#888888"})
+    pt_style = Style.from_dict({
+        "": "#5fd7d7",
+        "prompt-meta": "#888888",
+        "prompt-user": "#5fd7d7 bold",
+    })
     session: PromptSession = PromptSession(
         history=InMemoryHistory(),
         style=pt_style,
@@ -557,6 +593,14 @@ def main():
 
         if user_input.lower() == "/export":
             cmd_export(model_label, model_id, messages)
+            continue
+
+        if user_input.lower() == "/compact":
+            provider_session.validate_model(model_id)
+            compacted = cmd_compact(messages, model_id, agent_state)
+            if compacted is not messages:
+                messages = compacted
+                agent_state = AgentState()
             continue
 
         if user_input.lower() == "/model":
