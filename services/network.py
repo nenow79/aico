@@ -2,6 +2,7 @@
 import math
 import os
 import random
+import re
 import sys
 import time
 
@@ -36,6 +37,27 @@ def describe_error(error):
     return f"Błąd komunikacji ({type(error).__name__})."
 
 
+def diagnose_error(error, started):
+    """Safe hint: elapsed time, exception class names and numeric proxy tunnel status only."""
+    names, status, queue, seen = [], None, [error], set()
+    while queue and len(seen) < 12:
+        current = queue.pop(0)
+        if not isinstance(current, BaseException) or id(current) in seen:
+            continue
+        seen.add(id(current))
+        name = type(current).__name__
+        if name not in names:
+            names.append(name)
+        found = re.search(r"Tunnel connection failed: (\d{3})", str(current))
+        if found and status is None:
+            status = found.group(1)
+        queue += [current.__cause__, current.__context__, getattr(current, "reason", None), *current.args]
+    detail = f" [po {time.monotonic() - started:.1f} s; {' > '.join(names[:6])}"
+    if status:
+        detail += f"; proxy CONNECT HTTP {status}"
+    return detail + "]"
+
+
 def post_completion(url, *, headers, json, proxies=None, connect_timeout_default=10):
     timeout = (seconds("LLM_CONNECT_TIMEOUT", connect_timeout_default),
                seconds("LLM_READ_TIMEOUT", 120))
@@ -47,6 +69,7 @@ def post_completion(url, *, headers, json, proxies=None, connect_timeout_default
         raise NetworkError("LLM_RETRIES: wymagana liczba całkowita od 0 do 5.") from None
     for attempt in range(retries + 1):
         delay = min(2 ** attempt + random.random(), 30)
+        started = time.monotonic()
         try:
             # Explicit proxy entries take precedence over environment/NO_PROXY.
             # Copy per attempt: Requests may mutate the mapping while merging settings.
@@ -56,7 +79,7 @@ def post_completion(url, *, headers, json, proxies=None, connect_timeout_default
         except requests.exceptions.SSLError as error:
             raise NetworkError(describe_error(error)) from None
         except (requests.exceptions.ConnectionError, requests.exceptions.Timeout) as error:
-            message = describe_error(error)
+            message = describe_error(error) + diagnose_error(error, started)
         else:
             try:
                 if response.ok:

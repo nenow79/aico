@@ -58,6 +58,7 @@ promptach, eksporcie ani argumentach narzędzi.
 | MCP_DISCOVERY_TIMEOUT | 15 s na operację listowania danego serwera |
 | MCP_CALL_TIMEOUT | 60 s na operację narzędzia |
 | MCP_MAX_ITERATIONS | 40; dodatnia liczba całkowita; /steps zmienia budżet bieżącej sesji |
+| MCP_AUTO_CONNECT | 1 (domyślnie); łączy serwery MCP automatycznie przy starcie; 0 wyłącza auto-connect, /mcp connect łączy ręcznie |
 | AICO_EXACT_TOKENS | 0; tylko wartość 1 włącza tiktoken |
 | HTTP_PROXY, HTTPS_PROXY, ALL_PROXY | Proxy obsługiwane przez biblioteki transportowe |
 | NO_PROXY | Wyjątki; przykład projektu zawiera localhost,127.0.0.1,::1 |

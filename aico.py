@@ -264,7 +264,7 @@ def cmd_help():
     table.add_row("Ctrl+C",          "Przerwij agenta; nie anuluje zadania uruchomionego w MCP")
     table.add_row("/model",          "Zmień model tylko w ramach wybranego providera")
     table.add_row("/mcp",            "Pokaż status serwerów MCP i tools")
-    table.add_row("/mcp connect",    "Połącz z serwerami MCP z pliku konfiguracyjnego")
+    table.add_row("/mcp connect",    "Połącz z serwerami MCP (auto-connect przy starcie)")
     table.add_row("/mcp disconnect", "Rozłącz serwery MCP")
     table.add_row("/tokens",         "Szczegółowy licznik tokenów")
     table.add_row("/read",           "Czytaj ostatnią odpowiedź od początku; Esc/q wraca do rozmowy")
@@ -447,10 +447,23 @@ def main():
         console.print("[dim]Uzupełnij plik .env i uruchom ponownie.[/dim]")
         sys.exit(1)
 
-    # MCP nie jest ładowane automatycznie – użyj /mcp connect
+    # MCP auto-connect – domyślnie łączy przy starcie; MCP_AUTO_CONNECT=0 wyłącza
+    auto_connect = os.getenv("MCP_AUTO_CONNECT", "1") != "0"
     servers_with_tools: list[dict] = []
     active_servers: list[dict] = []
     mcp_count = 0
+
+    if auto_connect:
+        try:
+            servers_with_tools = init_mcp(MCP_SERVERS_PATH)
+            active_servers = [s for s in servers_with_tools if s["success"]]
+            mcp_count = len(active_servers)
+        except (Exception, KeyboardInterrupt) as error:
+            console.print(
+                f"Automatyczne łączenie MCP przerwane ({type(error).__name__}). "
+                "Użyj /mcp connect po starcie.",
+                markup=False,
+            )
 
     provider = get_provider_label(model_id)
     color = "green" if provider == "OpenRouter" else "yellow"
