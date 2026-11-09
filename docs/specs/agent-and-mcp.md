@@ -73,8 +73,18 @@ Bez identyfikatora albo get_task agent zgłasza błąd i odsyła do panelu.[^run
 
 `/continue` dla znanego zadania wykonuje pojedyncze get_task. Stan oczekujący
 pozostawia pauzę; `done` pozwala kontynuować model; odrzucenie lub inny końcowy
-stan błędu kończy obsługę bez ponownego utworzenia zadania. Nie ma automatycznej
-pętli odpytywania panelu.[^runner][^tests]
+stan błędu kończy obsługę bez ponownego utworzenia zadania.[^runner][^tests]
+
+Opcjonalny `/auto on` odpytuje znane zadanie przez get_task co 2 s i automatycznie
+wznawia runner po jego zakończeniu. `/auto off` wyłącza tryb, domyślnie jest on
+wyłączony. Zgodę w panelu nadal wydaje człowiek — tryb nie zatwierdza operacji.
+Polling jest blokujący; Ctrl+C przerywa lokalne oczekiwanie i wraca do promptu,
+bez anulowania zadania na serwerze. Wtedy można wydać `/auto off` albo wznowić
+ręcznie przez `/continue`. Polling ma limit 1 h; błąd transportu lub nieznany
+status wraca do ręcznej obsługi bez ponowienia operacji. Odczyty pollera nie trafiają
+do historii modelu; końcowy wynik pobiera zwykła ścieżka wznowienia. Tryb działa
+również dla już oczekującego zadania; po Ctrl+C można wznowić polling przez
+`/auto on`.[^poller]
 
 Przy znanym oczekującym zadaniu nowe polecenia, zmiana modelu i rozłączenie MCP
 są blokowane. `/mcp connect` może odświeżyć narzędzia bez wyczyszczenia task_id.
@@ -98,3 +108,4 @@ bez tool_calls oddaje sterowanie użytkownikowi; nie dowodzi wykonania zadania.
 [^runner]: Aktywna implementacja, nie starszy run_automatic.
 [^tests]: Scenariusze offline; zakres wykonanego sprawdzenia w CURRENT.
 [^completeness]: Detekcja metadanych, zachowanie wyniku i instrukcja doczytywania.
+[^poller]: `services/task_poller.py`, integracja CLI i `tests/test_task_poller.py`.

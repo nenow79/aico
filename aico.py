@@ -39,6 +39,7 @@ from services.llm_client import PROVIDER_LABELS
 from services.agent_protocol import ProtocolError
 from services.response_reader import last_assistant_response, read_response
 from services.context_compactor import compact_history
+from services.task_poller import poll_task, PENDING_STATES
 from services.token_counter import (
     count_chat_tokens,
     format_token_count,
@@ -260,6 +261,7 @@ def cmd_help():
 
     table.add_row("/help",           "Pokaż tę pomoc")
     table.add_row("/continue, /c",   "Wznów pauzę; oczekujące zadanie najpierw sprawdza get_task")
+    table.add_row("/auto [on|off]",   "Tryb automatycznego wznowienia po zakończeniu zadania MCP")
     table.add_row("/steps N",        "Budżet kroków na uruchomienie (domyślnie 40)")
     table.add_row("Ctrl+C",          "Przerwij agenta; nie anuluje zadania uruchomionego w MCP")
     table.add_row("/model",          "Zmień model tylko w ramach wybranego providera")
@@ -431,6 +433,80 @@ def send_message_mcp(
 
 
 # ---------------------------------------------------------------------------
+# Tryb /auto: automatyczne oczekiwanie na zadanie MCP
+# ---------------------------------------------------------------------------
+
+def auto_wait_for_task(
+    messages: list[dict],
+    model_id: str,
+    active_servers: list[dict],
+    max_iterations: int,
+    agent_state: AgentState,
+    console: Console,
+) -> list[dict]:
+    """Poll known MCP tasks and resume the agent without recording polling calls."""
+    while agent_state.waiting and agent_state.reason in {"approval", "task_running"}:
+        wait = agent_state.waiting
+        task_id = wait["task_id"]
+        console.print()
+        console.print(
+            f"  ⏳ [dim]Tryb /auto: czekam na zadanie [bold]{task_id}[/bold] "
+            "(Ctrl+C → wróć do oczekiwania ręcznego)[/dim]"
+        )
+
+        def on_tick(task_status: str, elapsed: int):
+            status_labels = {
+                "awaiting_approval": "🔒 czeka na zgodę w panelu",
+                "queued":            "⏳ w kolejce",
+                "running":           "⚙️  wykonywanie",
+            }
+            label = status_labels.get(task_status, task_status)
+            console.print(
+                f"  [dim]  zadanie {task_id}: {label} (+{elapsed}s)[/dim]",
+                highlight=False,
+            )
+
+        try:
+            poll_result = poll_task(
+                url=wait["url"],
+                task_id=task_id,
+                get_task_alias=wait["get_task_alias"],
+                on_tick=on_tick,
+            )
+        except KeyboardInterrupt:
+            agent_state.reason = "stopped"
+            console.print(
+                "\n  [dim]Ctrl+C — przerywam oczekiwanie. Zadanie nadal działa na serwerze. "
+                "Użyj /continue albo /auto on, aby wznowić.[/dim]"
+            )
+            return messages
+
+        final_status = poll_result["status"]
+        if final_status in {"error", "timeout"}:
+            # Do not immediately restart polling on the next CLI iteration.
+            agent_state.reason = "stopped"
+            console.print(
+                f"  [yellow]⚠️ {poll_result['error']}[/yellow]\n"
+                "  Użyj /continue do ręcznego sprawdzenia albo /auto on, aby wznowić polling."
+            )
+            return messages
+
+        if final_status == "done":
+            console.print(f"  [green]✅ Zadanie {task_id} zakończone — wznawiamy.[/green]")
+        else:
+            console.print(
+                f"  [yellow]⚠️ Zadanie {task_id} zakończyło się stanem "
+                f"[bold]{final_status}[/bold]; nie ponawiam operacji.[/yellow]"
+            )
+
+        # The runner performs one final get_task, records its result, and either
+        # continues the model or exposes the next approval-gated task.
+        messages = send_message_mcp("", messages, model_id, active_servers,
+                                    max_iterations, agent_state)
+    return messages
+
+
+# ---------------------------------------------------------------------------
 # Główna pętla
 # ---------------------------------------------------------------------------
 
@@ -492,6 +568,7 @@ def main():
     )
 
     agent_state = AgentState()
+    auto_mode: bool = False
     try:
         max_iterations = int(os.getenv("MCP_MAX_ITERATIONS", str(MAX_ITERATIONS_DEFAULT)))
         if max_iterations < 1:
@@ -501,6 +578,16 @@ def main():
         console.print("Niepoprawne MCP_MAX_ITERATIONS; używam 40 kroków.", markup=False)
 
     while True:
+        if auto_mode and agent_state.waiting and agent_state.reason in {"approval", "task_running"}:
+            messages = auto_wait_for_task(
+                messages=messages,
+                model_id=model_id,
+                active_servers=active_servers,
+                max_iterations=max_iterations,
+                agent_state=agent_state,
+                console=console,
+            )
+
         prompt_text = build_prompt_text(model_label, messages, mcp_count)
 
         try:
@@ -533,6 +620,25 @@ def main():
                 console.print("Brak pauzy do wznowienia. Napisz nowe polecenie, jeśli model skończył odpowiedź.", markup=False)
             else:
                 messages = send_message_mcp("", messages, model_id, active_servers, max_iterations, agent_state)
+            continue
+
+        if user_input.lower().startswith("/auto"):
+            arg = user_input[5:].strip().lower()
+            if arg == "on":
+                auto_mode = True
+                if agent_state.waiting and agent_state.reason == "stopped":
+                    agent_state.reason = "task_running"
+                console.print("  [green]✓[/green] Tryb /auto [bold]włączony[/bold]. "
+                              "Po zatwierdzeniu zadania w panelu aico wznowi się automatycznie. "
+                              "Ctrl+C przerywa oczekiwanie.", markup=True)
+            elif arg == "off":
+                auto_mode = False
+                console.print("  [dim]Tryb /auto wyłączony. Użyj /continue po każdym zadaniu.[/dim]")
+            elif arg == "":
+                stan = "[green]włączony[/green]" if auto_mode else "[dim]wyłączony[/dim]"
+                console.print(f"  Tryb /auto: {stan}. Użyj [cyan]/auto on[/cyan] lub [cyan]/auto off[/cyan].")
+            else:
+                console.print("Użycie: /auto, /auto on, /auto off", markup=False)
             continue
 
         if user_input.lower() == "/steps" or user_input.lower().startswith("/steps "):

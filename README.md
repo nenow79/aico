@@ -53,6 +53,16 @@ mógł zostać wykonany: najpierw sprawdź panel, listę zadań i wynik operacji
 `/continue` po błędzie transportu wznawia model z informacją o nieznanym wyniku;
 używaj go dopiero po ocenie stanu. Dla znanego oczekującego zadania `/continue`
 najpierw wykonuje `get_task`, nie tworzy nowego zadania.
+
+Opcjonalnie `/auto on` włącza automatyczne sprawdzanie znanego zadania MCP co 2 s
+i wznowienie agenta po jego zakończeniu. `/auto off` wyłącza tryb, a samo `/auto`
+pokazuje stan. Domyślnie tryb jest wyłączony. Zatwierdzenie nadal wykonujesz ręcznie
+w panelu sklr — `/auto` nie akceptuje operacji. Polling jest blokujący: by wyłączyć go
+w trakcie, najpierw naciśnij `Ctrl+C`, który wraca do promptu, ale nie anuluje zadania;
+potem możesz użyć `/auto off` albo `/continue`.
+Błąd odczytu albo limit 1 h kończy automatyczne oczekiwanie bez ponowienia operacji;
+stan możesz sprawdzić ręcznie przez `/continue`. Polling dotyczy wyłącznie znanego
+`task_id` i nie tworzy dodatkowych wiadomości `get_task` w historii modelu.
 `/mcp connect` odświeża narzędzia również podczas oczekiwania na zadanie;
 zachowaj nazwę i URL serwera, aby można było odnaleźć wcześniejsze powiązanie.
 

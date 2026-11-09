@@ -11,6 +11,7 @@ from services.agent_protocol import (
 from services.mcp_client import call_mcp_tool
 from services.network import NetworkError
 from services.mcp_completeness import READING_POLICY, completeness_notice
+from services.task_poller import poll_task
 
 
 SYSTEM_PROMPT = """Jesteś agentem terminalowym aico. Korzystaj z narzędzi MCP przez natywne tool_calls.
@@ -81,7 +82,10 @@ def run_native(messages: list[dict], model: str, servers_with_tools: list[dict],
             status("error", "Brak dostępnych narzędzi MCP.")
             return messages
 
-        # A user-triggered resume checks the existing task once, never reissues its operation.
+        # A user-triggered (or auto-mode) resume checks the existing task once,
+        # never reissues its operation. In auto mode the poller has already
+        # confirmed the terminal state; this single get_task writes the final
+        # result into model history.
         if state.waiting:
             wait = state.waiting
             if wait["get_task_alias"] not in bindings:

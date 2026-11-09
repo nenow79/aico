@@ -39,6 +39,11 @@ głównie z LiteLLM i MCP-sklr.[^code][^session]
   standardowe zmienne, odświeżanie MCP przy oczekującym zadaniu, przenośny launcher
   Windows i domyślny licznik tokenów bez pobierania słownika.
 - Starszy tekstowy runner nadal istnieje, ale CLI go nie uruchamia.[^code]
+- Opcjonalne `/auto on/off` odpytuje znane zadanie MCP co 2 s i wznawia
+  runner automatycznie po jego zakończeniu. Tryb domyślnie wyłączony; nie wydaje
+  zgód. Ctrl+C zatrzymuje polling bez anulowania zadania; limit oczekiwania to 1 h.
+  Testy offline: 80/80 zaliczonych w Windows, Python 3.14.7, przez venv/Scripts/python.exe
+  (zadanie sklr 3027). Interaktywny odbiór `/auto` na Windows pozostaje otwarty.[^auto]
 - `/read` otwiera ostatnią niepustą odpowiedź asystenta w osobnym widoku tylko
   do odczytu, od początku. Obsługuje strzałki, Page Up/Down, Home/End i Esc/q.
   Pokazuje tekst Markdown, bez wywołań LLM/MCP i zmian historii. Dostępne również
@@ -176,3 +181,4 @@ Otwarta praca i proponowana kolejność są wyłącznie w [backlogu](backlog.md)
 [^code]: Przegląd lokalnych plików wskazanych w sources; bez utożsamiania working tree z wdrożeniem.
 [^session]: Wynik wykonania testów i wymagania z wcześniejszego etapu tej rozmowy.
 [^review]: Rozbieżności, zachowane oryginały i granice migracji.
+[^auto]: `aico.py`, `services/task_poller.py`, `tests/test_task_poller.py`; pełny offline unittest, szczegóły powyżej.

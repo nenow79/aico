@@ -43,6 +43,7 @@ Kolejność poniżej jest propozycją, nie zatwierdzonym harmonogramem.[^state]
 | 3 | Ustalenie losu starszego runnera | Rozpoznani użytkownicy i świadoma decyzja: utrzymanie, oznaczenie albo usunięcie |
 | 3 | Uporządkowanie drobnych rozbieżności opisów | Docstring token_counter odpowiada obecnemu trybowi domyślnemu |
 | 3 | Wybór potrzebnych modeli i serwerów | Konfiguracja zgodna z rzeczywistą dostępnością i potrzebami |
+| 2 | Odbiór trybu `/auto` | Próba interaktywna Windows: zatwierdzenie, polling, wznowienie, Ctrl+C i błąd transportu (testy offline 80/80 zaliczone) |
 
 Przeniesienie oryginałów legacy oraz ewentualne włączenie wymogu OKF pozostają
 osobnymi decyzjami użytkownika. Nie są automatycznym etapem tej migracji.
